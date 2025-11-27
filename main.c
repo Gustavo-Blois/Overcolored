@@ -5,6 +5,10 @@
 #include <stdio.h>
 #include <time.h>
 
+// CKTP: cooktop
+// CTBD: cutting board
+// FLOR: floor
+// DLVR: deliver (onde entregamos os pedidos)
 typedef enum block{
 WALL,
 CKTP,
@@ -36,19 +40,19 @@ void render(block board[LEVEL_SIZE][LEVEL_SIZE]){
         for(int j = 0; j < LEVEL_SIZE; j++){
 			switch(board[i][j]) {
 				case FLOR:
-					DrawRectangleV((Vector2){sizeofsquare.x*i,sizeofsquare.y*j},sizeofsquare,(Color){50, 50, 50, 255});
+					DrawRectangleV((Vector2){sizeofsquare.x*j,sizeofsquare.y*i},sizeofsquare,(Color){50, 50, 50, 255});
 					break;
 				case WALL:
-					DrawRectangleV((Vector2){sizeofsquare.x*i,sizeofsquare.y*j},sizeofsquare,(Color){150, 150, 150, 255});
+					DrawRectangleV((Vector2){sizeofsquare.x*j,sizeofsquare.y*i},sizeofsquare,(Color){150, 150, 150, 255});
 					break;
 				case CTBD:
-					DrawRectangleV((Vector2){sizeofsquare.x*i,sizeofsquare.y*j},sizeofsquare,(Color){255, 255, 255, 255});
+					DrawRectangleV((Vector2){sizeofsquare.x*j,sizeofsquare.y*i},sizeofsquare,(Color){255, 255, 255, 255});
 					break;
 				case CKTP:
-					DrawRectangleV((Vector2){sizeofsquare.x*i,sizeofsquare.y*j},sizeofsquare,(Color){50, 50, 255, 255});
+					DrawRectangleV((Vector2){sizeofsquare.x*j,sizeofsquare.y*i},sizeofsquare,(Color){50, 50, 255, 255});
 					break;
 				case DLVR:
-					DrawRectangleV((Vector2){sizeofsquare.x*i,sizeofsquare.y*j},sizeofsquare,(Color){50, 255, 50, 255});
+					DrawRectangleV((Vector2){sizeofsquare.x*j,sizeofsquare.y*i},sizeofsquare,(Color){50, 255, 50, 255});
 					break;
 			}
         }
