@@ -5,20 +5,26 @@
 #include <stdio.h>
 #include <time.h>
 
+// CKTP: cooktop
+// CTBD: cutting board
+// FLOR: floor
+// DLVR: deliver (onde entregamos os pedidos)
 typedef enum block{
 WALL,
-COOKTOP,
-CUTTING_BOARD,
-FLOOR,
+CKTP,
+CTBD,
+FLOR,
+DLVR,
 } block;
 
 
 #define LEVEL_SIZE 10
 #define screenHeight 500
 #define screenWidth 500
-block BOARD[LEVEL_SIZE][LEVEL_SIZE] = {FLOOR};
 
-void render(){
+#include "boards.h"
+
+void render(block board[LEVEL_SIZE][LEVEL_SIZE]){
 
     Vector2 offset = {screenWidth%LEVEL_SIZE,screenHeight%LEVEL_SIZE};
     BeginDrawing();
@@ -32,7 +38,23 @@ void render(){
 
     for(int i = 0; i < LEVEL_SIZE; i++){
         for(int j = 0; j < LEVEL_SIZE; j++){
-            DrawRectangleV((Vector2){sizeofsquare.x*i,sizeofsquare.y*j},sizeofsquare,(Color){rand()%255, rand()%255, rand()%255, rand()%255});
+			switch(board[i][j]) {
+				case FLOR:
+					DrawRectangleV((Vector2){sizeofsquare.x*j,sizeofsquare.y*i},sizeofsquare,(Color){50, 50, 50, 255});
+					break;
+				case WALL:
+					DrawRectangleV((Vector2){sizeofsquare.x*j,sizeofsquare.y*i},sizeofsquare,(Color){150, 150, 150, 255});
+					break;
+				case CTBD:
+					DrawRectangleV((Vector2){sizeofsquare.x*j,sizeofsquare.y*i},sizeofsquare,(Color){255, 255, 255, 255});
+					break;
+				case CKTP:
+					DrawRectangleV((Vector2){sizeofsquare.x*j,sizeofsquare.y*i},sizeofsquare,(Color){50, 50, 255, 255});
+					break;
+				case DLVR:
+					DrawRectangleV((Vector2){sizeofsquare.x*j,sizeofsquare.y*i},sizeofsquare,(Color){50, 255, 50, 255});
+					break;
+			}
         }
     }
     for (int i = 0; i < screenWidth/LEVEL_SIZE + 1; i++){
@@ -56,7 +78,7 @@ int main(){
     InitWindow(500,500,"clicker");
     SetTargetFPS(60);
     while(!WindowShouldClose()){
-        render();
+        render(map2);
         if(IsMouseButtonPressed(MOUSE_BUTTON_LEFT)){
             clicks += 1;
             printf("clicks: %d\n",clicks);
@@ -65,7 +87,6 @@ int main(){
             CloseWindow();
             break;
         }
-        
     }
 
     return 0;
