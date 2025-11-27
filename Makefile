@@ -7,7 +7,9 @@ LDFLAGS = -L$(RAYLIB_DIR)/lib \
           -lraylib -lGL -lm -lpthread -ldl -lrt -lX11 \
           -Wl,-rpath,'$$ORIGIN/../external/raylib-5.5_linux_amd64/lib'
 
-.PHONY: all run clean
+RAYLIB ?= ./external/raylib-5.5/src/
+
+.PHONY: all run clean nix
 
 all: $(TARGET)
 
@@ -16,6 +18,9 @@ $(TARGET): main.c | $(TARGET_DIR)
 
 $(TARGET_DIR):
 	mkdir -p $(TARGET_DIR)
+
+nix:
+	gcc main.c -I$(RAYLIB)include -L$(RAYLIB)lib -lraylib -lGL -lm -lpthread -ldl -lrt -lX11 
 
 run: $(TARGET)
 	./$(TARGET)
