@@ -174,7 +174,6 @@ void update_player_color(Player *p1, block color){
         default:
             break;
     }
-
 }
 void deliver(Player *p1){
     p1->color = 0x000;
