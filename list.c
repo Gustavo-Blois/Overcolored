@@ -56,7 +56,7 @@ void list_remove(struct node* it, list** l) {
 
 	while (node) {
 		if (node == it) {
-			if (*l == node)
+			if (*l == it)
 				*l = node->next;
 
 			if (prev)

@@ -51,10 +51,11 @@ typedef struct player_st{
 
 const char *game_over_message = "O JOGO ACABOU";
 int GAME_OVER = 0;
+bool quit = false;
 
-float tempo_spawn_cliente = 4.0;
-float tempo_espera_cliente = 15.0;
-
+float tempo_spawn_cliente = 2.0;
+float tempo_espera_cliente = 3.0;
+float tempo_spawn_inicial = 1.0;
 
 int n_pedidos_feitos = 0;
 int n_erros = 0;
@@ -232,7 +233,7 @@ void update_player_color(Player *p1, block color){
 }
 
 
-list* get_next_matching_color(list* orders, int color) {
+list* get_first_matching_color(list* orders, int color) {
 	list* node = orders;
 	while(node) {
 		if (*((int*) node->data) == color)
@@ -250,7 +251,7 @@ void deliver(Player *p1, sem_t* orders_buf_semaphore, list* orders) {
 
 	sem_wait(orders_buf_semaphore);
 
-	struct node* it = get_next_matching_color(orders, p1->color);
+	struct node* it = get_first_matching_color(orders, p1->color);
 	if (it) {
 		*((int*) it->data) = -1;
 		p1->color = 0b000;
@@ -258,6 +259,7 @@ void deliver(Player *p1, sem_t* orders_buf_semaphore, list* orders) {
 
 	sem_post(orders_buf_semaphore);
 }
+
 
 void moveUp(block board[LEVEL_SIZE_Y][LEVEL_SIZE_X], Player *p1, sem_t* sem, list* orders){
     if (p1->pos.y < LEVEL_SIZE_Y){
@@ -316,7 +318,7 @@ void moveRight(block board[LEVEL_SIZE_Y][LEVEL_SIZE_X],Player *p1, sem_t* sem, l
 }
 
 
-void* consumidor(void* args);
+void* customer(void* args);
 
 
 // Structs com os argumentos que serão passados
@@ -367,13 +369,27 @@ void *produtor(void *args) {
 	time_t initial_time = time(NULL);
 	time_t current_time = time(NULL);
 
+	float tempo_spawn = tempo_spawn_inicial;
+
 	// Cria novas threads para cada cliente a cada intervalo
 	// de tempo.
 	//
 	// Cria até n_pedidos threads.
 	for (; n_pedidos_feitos < n_pedidos; ) {
 
-		if (GAME_OVER)
+		// Espera um tempo antes de criar um pedido novo.
+		while (difftime(current_time, initial_time) < tempo_spawn) {
+			current_time = time(NULL);
+
+			if (GAME_OVER || quit)
+				return NULL;
+		}
+
+		tempo_spawn = tempo_spawn_cliente;
+
+		initial_time = current_time;
+
+		if (GAME_OVER || quit)
 			break;
 
 		// Diminui o semáforo de threads disponíveis.
@@ -403,19 +419,16 @@ void *produtor(void *args) {
 			.thread_it = thread_it
 		};
 
-		pthread_create(thread_it->data, NULL, &consumidor, &c_args);
+		pthread_create(thread_it->data, NULL, &customer, &c_args);
 
 		sem_post(sem_buf_orders);
 
-		if (order_it)
-			n_pedidos_feitos += 1;
-
-		// Espera um tempo antes de criar um pedido novo.
-		while (difftime(current_time, initial_time) < tempo_spawn_cliente)
-			current_time = time(NULL);
-
-		initial_time = current_time;
+		n_pedidos_feitos += 1;
 	}
+
+	printf("Produtor finalizou.\n");
+
+	return NULL;
 }
 
 	// Deleta um cliente da lista de pedidos e da lista de
@@ -448,7 +461,7 @@ void vai_embora(
 }
 
 
-void* consumidor(void* args) {
+void* customer(void* args) {
 
 	sem_t* orders_buf_sem = ((consumer_args*) args)->semaphore;
 	sem_t* av_threads_sem = ((consumer_args*) args)->avalible_threads;
@@ -463,9 +476,13 @@ void* consumidor(void* args) {
 	printf("Cliente criado!\n");
 
 	while(difftime(current_time, initial_time) < tempo_espera_cliente) {
-		if (GAME_OVER) {
+		if (GAME_OVER || quit) {
+			sem_wait(orders_buf_sem);
+
 			list_remove(order_it, active_orders);
 			list_remove(thread_it, active_threads);
+
+			sem_post(orders_buf_sem);
 			sem_post(av_threads_sem);
 
 			return NULL;
@@ -475,7 +492,6 @@ void* consumidor(void* args) {
 			vai_embora(orders_buf_sem, active_orders, order_it, active_threads, thread_it, true);
 
 			printf("Cliente foi embora satisfeito :D\n");
-			sem_post(av_threads_sem);
 
 			return NULL;
 		}
@@ -483,13 +499,17 @@ void* consumidor(void* args) {
 		current_time = time(NULL);
 	}
 
-	if (GAME_OVER) {
-			list_remove(order_it, active_orders);
-			list_remove(thread_it, active_threads);
-			sem_post(av_threads_sem);
+	if (GAME_OVER || quit) {
+		sem_wait(orders_buf_sem);
 
-			return NULL;
-		}
+		list_remove(order_it, active_orders);
+		list_remove(thread_it, active_threads);
+
+		sem_post(orders_buf_sem);
+		sem_post(av_threads_sem);
+
+		return NULL;
+	}
 
 	vai_embora(orders_buf_sem, active_orders, order_it, active_threads, thread_it, false);
 	printf("Cliente foi embora não satisfeito :(\n");
@@ -499,7 +519,6 @@ void* consumidor(void* args) {
 }
 
 int setup(
-	pthread_t* producer,
 	sem_t** orders,
 	sem_t** av_th,
 	Player* p1) {
@@ -533,21 +552,57 @@ int setup(
 
 void main_loop(
 	Player* p1,
+	pthread_t* prod,
 	list** active_orders,
 	list** active_customers,
 	sem_t* orders_buf_sem,
-	sem_t* sem_avalible_threads) {
+	sem_t* sem_avalible_threads,
+	producer_args* prod_args) {
 	while(!WindowShouldClose()) {
         render(map2, p1, active_orders, orders_buf_sem);
         time_t current_time = time(NULL);
 
         
         if (IsKeyPressed('Q')) {
+			quit = true;
 			CloseWindow();
             break;
         }
 
-		if (GAME_OVER){continue;}
+		if (GAME_OVER){
+			if (IsKeyPressed('R')) {
+
+				// Espera as threads terminarem.
+				while (*active_orders || *active_customers);
+
+				n_erros = 0;
+				score = 0;
+
+				// Reseta os valores dos semáforos.
+				int sem_value;
+				sem_getvalue(orders_buf_sem, &sem_value);
+				if (!sem_value)
+					sem_post(orders_buf_sem);
+
+				sem_getvalue(sem_avalible_threads, &sem_value);
+				while (sem_value < N_ACTIVE_ORDERS) {
+					sem_post(sem_avalible_threads);
+					sem_getvalue(sem_avalible_threads, &sem_value);
+				}
+
+				pthread_create(prod, NULL, &produtor, prod_args);
+
+				GAME_OVER = 0;
+
+				continue;
+			}
+
+			if (IsKeyPressed('Q')) {
+				quit = true;
+				CloseWindow();
+				break;
+			}
+		}
 
         if (IsKeyPressed('W')){
             moveUp(map2,p1, orders_buf_sem, *active_orders);
@@ -573,7 +628,7 @@ int main(){
 	list* active_orders = NULL;
 	list* active_customers = NULL;
 
-	if (setup(&prod, &orders_buf_sem, &sem_avalible_threads, &p1))
+	if (setup(&orders_buf_sem, &sem_avalible_threads, &p1))
 		return -1;
 
     time_t initial_time = time(NULL);
@@ -587,7 +642,14 @@ int main(){
 
 	pthread_create(&prod, NULL, &produtor, &prod_args);
 
-    main_loop(&p1, &active_orders, &active_customers, orders_buf_sem, sem_avalible_threads);
+    main_loop(
+		&p1,
+		&prod,
+		&active_orders,
+		&active_customers,
+		orders_buf_sem,
+		sem_avalible_threads,
+		&prod_args);
 
 	sem_close(orders_buf_sem);
 	sem_close(sem_avalible_threads);
