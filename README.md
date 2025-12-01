@@ -1,5 +1,4 @@
 
-```markdown
 # Overcolored
 
 Jogo em C para a disciplina SSC0140 – Sistemas Operacionais I (ICMC/USP).  
