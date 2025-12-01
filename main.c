@@ -31,7 +31,7 @@ typedef struct player_st {
 
 #define LEVEL_SIZE_Y 11
 #define LEVEL_SIZE_X 10
-#define N_ACTIVE_ORDERS 5
+#define N_ACTIVE_ORDERS 8
 
 #include "boards.h"
 
@@ -42,6 +42,7 @@ float tempo_espera_cliente = 15.0f;
 
 int GAME_OVER = 0;
 int n_erros = 0;
+int max_erros = 3;
 int score = 0;
 
 typedef struct node {
@@ -59,7 +60,7 @@ typedef struct {
     order_list *node;
 } consumer_args;
 
-order_list* list_push_back_locked(int e) {
+order_list* list_push_back(int e) {
     order_list *node = active_orders;
     if (!node) {
         active_orders = malloc(sizeof(order_list));
@@ -77,7 +78,7 @@ order_list* list_push_back_locked(int e) {
     return node->next;
 }
 
-void list_remove_locked(order_list *it) {
+void list_remove(order_list *it) {
     if (!it)
         return;
     order_list *node = active_orders;
@@ -96,7 +97,7 @@ void list_remove_locked(order_list *it) {
     }
 }
 
-int any_open_slot_locked() {
+int any_open_slot() {
     int count = 0;
     order_list *node = active_orders;
     while (node) {
@@ -106,7 +107,7 @@ int any_open_slot_locked() {
     return count < N_ACTIVE_ORDERS;
 }
 
-order_list* get_next_matching_color_locked(int color) {
+order_list* get_next_matching_color(int color) {
     order_list *node = active_orders;
     while (node) {
         if (node->v == color)
@@ -125,10 +126,10 @@ void vai_embora(order_list *order_it, int feliz) {
         	score -= 10;
 		}
 			n_erros += 1;
-        if (n_erros == 2)
+        if (n_erros == max_erros)
             GAME_OVER = 1;
     }
-    list_remove_locked(order_it);
+    list_remove(order_it);
     sem_post(&orders_sem);
 }
 
@@ -162,7 +163,7 @@ void* consumidor(void *args) {
 
         if (game_over_local) {
             sem_wait(&orders_sem);
-            list_remove_locked(it);
+            list_remove(it);
             sem_post(&orders_sem);
             return NULL;
         }
@@ -191,7 +192,7 @@ void* produtor(void *args) {
     while (1) {
         sem_wait(&orders_sem);
         int game_over_local = GAME_OVER;
-        int can_spawn = any_open_slot_locked();
+        int can_spawn = any_open_slot();
         sem_post(&orders_sem);
 
         if (game_over_local)
@@ -200,7 +201,7 @@ void* produtor(void *args) {
         if (can_spawn) {
             int next_order = (rand() % 7) + 1;
             sem_wait(&orders_sem);
-            order_list *it = list_push_back_locked(next_order);
+            order_list *it = list_push_back(next_order);
             sem_post(&orders_sem);
 
             consumer_args *cargs = malloc(sizeof(consumer_args));
@@ -254,7 +255,7 @@ void deliver(Player *p1) {
     if (p1->color == 0)
         return;
     sem_wait(&orders_sem);
-    order_list *it = get_next_matching_color_locked(p1->color);
+    order_list *it = get_next_matching_color(p1->color);
     if (it) {
         it->v = -1;
         it->tempo_restante = -1.0f;
@@ -432,8 +433,11 @@ void render(block board[LEVEL_SIZE_Y][LEVEL_SIZE_X], Player *p1) {
         DrawLineV((Vector2){0, i * sizeofsquare.y}, (Vector2){GetScreenWidth(), i * sizeofsquare.y}, LIGHTGRAY);
     }
 
-    DrawText(TextFormat("Pontuação: %d", score_local), 0, sizeofsquare.y * ((float)LEVEL_SIZE_Y - 0.9f), 12, BLACK);
-
+    DrawText(TextFormat(" Pontuação: %d", score_local), 0, sizeofsquare.y * ((float)LEVEL_SIZE_Y - 0.9f), 12, BLACK);
+	DrawText(TextFormat(" Vidas: ", score_local), 0, sizeofsquare.y * ((float)LEVEL_SIZE_Y - 0.4f), 12, BLACK);
+	for(int i = 0; i < max_erros - n_erros; i++){
+		DrawText(TextFormat("*", score_local), 10 + 10*i, sizeofsquare.y * ((float)LEVEL_SIZE_Y - 0.2f), 15, BLACK);
+	}
     switch (p1->color) {
         case 0b000:
             DrawRectangleV((Vector2){sizeofsquare.x * p1->pos.x, sizeofsquare.y * p1->pos.y}, sizeofsquare, BLACK);
