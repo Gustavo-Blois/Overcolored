@@ -206,6 +206,6 @@ Trabalho para a disciplina SSC0140 – Sistemas Operacionais I (ICMC/USP).
 
 Integrantes do grupo:
 
-Gustavo Blois – 13688162
-Lucas Rodrigues Baptista – 15577631  
+- Gustavo Blois – 13688162
+- Lucas Rodrigues Baptista – 15577631  
 
